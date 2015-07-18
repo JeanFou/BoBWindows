@@ -44,6 +44,7 @@ bool read_file_using_memory_map()
 
 	// current dir \\ test.txt 파일명 생성
 	wchar_t file_name[260];
+	wchar_t file_name2[260];
 	if (!SUCCEEDED(StringCbPrintfW(
 		file_name,
 		sizeof(file_name),
@@ -54,12 +55,19 @@ bool read_file_using_memory_map()
 		free(buf);
 		return false;
 	}
+	if (!SUCCEEDED(StringCbPrintfW(
+		file_name2,
+		sizeof(file_name2),
+		L"%ws\\bob2.txt",
+		buf)))
+	{
+		printf("err, can not create file name");
+		free(buf);
+		return false;
+	}
 	free(buf); buf = NULL;
 
-	/*if (true == is_file_existsW(file_name))
-	{
-	::DeleteFileW(file_name);
-	}*/
+	
 
 
 
@@ -149,17 +157,50 @@ bool read_file_using_memory_map()
 		return false;
 	}
 
+	wchar_t *bstrstr = NULL;
+	char* str = NULL;
+	int Len1 = ::MultiByteToWideChar(CP_UTF8, 0, file_view, -1, bstrstr, 0);
+	bstrstr = (wchar_t*)malloc(sizeof(wchar_t)*(Len1 + 1));
+	memset(bstrstr, 0, sizeof(bstrstr));
+	::MultiByteToWideChar(CP_UTF8, 0, file_view, -1, bstrstr, Len1);
+
+	int Len2 = WideCharToMultiByte(CP_ACP, 0, bstrstr, -1, str, 0, NULL, NULL);
+	str = (char*)malloc(Len2 + 1);
+	memset(str, 0, sizeof(str));
+	WideCharToMultiByte(CP_ACP, 0, bstrstr, -1, str, Len2, NULL, NULL);
+	
+	printf("using Memory Mapped I/O:\n");
+	printf("%s\n", str+1);
 	
 	// do some io
 	char a = file_view[0];  // 0x d9
 	char b = file_view[1];  // 0xb3
 
+	
+	::DeleteFileW(file_name);
 
+	HANDLE file_handle2 = CreateFileW(
+		(LPCWSTR)file_name2,
+		GENERIC_READ | GENERIC_WRITE,
+		FILE_SHARE_READ,
+		NULL,
+		OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL,
+		NULL
+		);
+	if (INVALID_HANDLE_VALUE == file_handle2)
+	{
+		printf("err, CreateFile(%ws) failed, gle = %u", file_name2, GetLastError());
+		return false;
+	}
+
+	::DeleteFileW(file_name2);
 
 	// close all
 	UnmapViewOfFile(file_view);
 	CloseHandle(file_map);
 	CloseHandle(file_handle);
+	CloseHandle(file_handle2);
 	return true;
 
 }
@@ -321,10 +362,11 @@ bool read_file()
 	memset(str, 0, sizeof(str));
 	WideCharToMultiByte(CP_ACP, 0, bstrstr, -1, str, Len2, NULL, NULL);
 	
-
-	printf("%s", str+1); //??? 왜 1 더해야할까
+	printf("Using ReadFile() api:\n");
+	printf("%s\n\n", str+1); //??? 왜 1 더해야할까
 	
 	free(bstrstr);
 	free(str);
 	return true;
 }
+
