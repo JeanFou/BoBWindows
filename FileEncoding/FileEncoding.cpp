@@ -12,7 +12,6 @@
 bool read_file_using_memory_map();
 bool create_file();
 bool copy_file();
-bool read_and_print();
 bool read_file();
 bool delete_file();
 
