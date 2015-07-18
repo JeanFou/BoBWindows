@@ -10,14 +10,39 @@
 #define MAX_LINE 1024
 
 bool read_file_using_memory_map();
-bool create_file(HANDLE file_handle);
-bool copy_file(LPCWSTR input);
+bool create_file();
+bool copy_file();
 bool read_and_print();
 bool read_file();
+bool delete_file();
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	read_file_using_memory_map();
+	if (TRUE != create_file())
+	{
+		return -1;
+	}
+
+	if (TRUE != copy_file())
+	{
+		return -1;
+	}
+
+	if (TRUE != read_file())
+	{
+		return -1;
+	}
+
+	if (TRUE != read_file_using_memory_map())
+	{
+		return -1;
+	}
+
+	if (TRUE != delete_file())
+	{
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -44,20 +69,10 @@ bool read_file_using_memory_map()
 
 	// current dir \\ test.txt 파일명 생성
 	wchar_t file_name[260];
-	wchar_t file_name2[260];
+
 	if (!SUCCEEDED(StringCbPrintfW(
 		file_name,
 		sizeof(file_name),
-		L"%ws\\bob.txt",
-		buf)))
-	{
-		printf("err, can not create file name");
-		free(buf);
-		return false;
-	}
-	if (!SUCCEEDED(StringCbPrintfW(
-		file_name2,
-		sizeof(file_name2),
 		L"%ws\\bob2.txt",
 		buf)))
 	{
@@ -67,17 +82,12 @@ bool read_file_using_memory_map()
 	}
 	free(buf); buf = NULL;
 
-	
-
-
-
-
-	HANDLE file_handle = CreateFileW(
+	HANDLE file_handle = CreateFileW( //파일핸들 생성
 		(LPCWSTR)file_name,
 		GENERIC_READ | GENERIC_WRITE,
 		FILE_SHARE_READ,
 		NULL,
-		CREATE_ALWAYS,
+		OPEN_EXISTING,
 		FILE_ATTRIBUTE_NORMAL,
 		NULL
 		);
@@ -86,19 +96,6 @@ bool read_file_using_memory_map()
 		printf("err, CreateFile(%ws) failed, gle = %u", file_name, GetLastError());
 		return false;
 	}
-
-	if (TRUE != create_file(file_handle))
-	{
-		return false;
-	}
-
-	if (TRUE != copy_file(file_name))
-	{
-		CloseHandle(file_handle);
-		return false;
-	}
-
-	read_file();
 
 	// check file size 
 	// 
@@ -159,10 +156,10 @@ bool read_file_using_memory_map()
 
 	wchar_t *bstrstr = NULL;
 	char* str = NULL;
-	int Len1 = ::MultiByteToWideChar(CP_UTF8, 0, file_view, -1, bstrstr, 0);
+	int Len1 = MultiByteToWideChar(CP_UTF8, 0, file_view, -1, bstrstr, 0);
 	bstrstr = (wchar_t*)malloc(sizeof(wchar_t)*(Len1 + 1));
 	memset(bstrstr, 0, sizeof(bstrstr));
-	::MultiByteToWideChar(CP_UTF8, 0, file_view, -1, bstrstr, Len1);
+	MultiByteToWideChar(CP_UTF8, 0, file_view, -1, bstrstr, Len1);
 
 	int Len2 = WideCharToMultiByte(CP_ACP, 0, bstrstr, -1, str, 0, NULL, NULL);
 	str = (char*)malloc(Len2 + 1);
@@ -177,36 +174,64 @@ bool read_file_using_memory_map()
 	char b = file_view[1];  // 0xb3
 
 	
-	::DeleteFileW(file_name);
 
-	HANDLE file_handle2 = CreateFileW(
-		(LPCWSTR)file_name2,
-		GENERIC_READ | GENERIC_WRITE,
-		FILE_SHARE_READ,
-		NULL,
-		OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL,
-		NULL
-		);
-	if (INVALID_HANDLE_VALUE == file_handle2)
-	{
-		printf("err, CreateFile(%ws) failed, gle = %u", file_name2, GetLastError());
-		return false;
-	}
-
-	::DeleteFileW(file_name2);
 
 	// close all
 	UnmapViewOfFile(file_view);
 	CloseHandle(file_map);
 	CloseHandle(file_handle);
-	CloseHandle(file_handle2);
 	return true;
 
 }
 
-bool create_file(HANDLE file_handle)
+bool create_file()
 {
+	wchar_t *buf = NULL;
+	uint32_t buflen = 0;
+	buflen = GetCurrentDirectoryW(buflen, buf);
+	if (0 == buflen)
+	{
+		printf("err, GetCurrentDirectoryW() failed. gle = 0x%08x", GetLastError());
+		return false;
+	}
+
+	buf = (PWSTR)malloc(sizeof(WCHAR) * buflen);
+	if (0 == GetCurrentDirectoryW(buflen, buf))
+	{
+		printf("err, GetCurrentDirectoryW() failed. gle = 0x%08x", GetLastError());
+		free(buf);
+		return false;
+	}
+
+	// current dir \\ test.txt 파일명 생성
+	wchar_t file_name[260];
+	if (!SUCCEEDED(StringCbPrintfW(
+		file_name,
+		sizeof(file_name),
+		L"%ws\\bob.txt",
+		buf)))
+	{
+		printf("err, can not create file name");
+		free(buf);
+		return false;
+	}
+	free(buf); buf = NULL;
+
+	HANDLE file_handle = CreateFileW(
+		(LPCWSTR)file_name,
+		GENERIC_READ | GENERIC_WRITE,
+		FILE_SHARE_READ,
+		NULL,
+		CREATE_ALWAYS,
+		FILE_ATTRIBUTE_NORMAL,
+		NULL
+		);
+	if (INVALID_HANDLE_VALUE == file_handle)
+	{
+		printf("err, CreateFile(%ws) failed, gle = %u", file_name, GetLastError());
+		return false;
+	}
+
 	wchar_t str[260];// "노용환멘토님 만세~ I can give my word." 문자열 생성
 	if (!SUCCEEDED(StringCbPrintfW( 
 		str,
@@ -230,13 +255,13 @@ bool create_file(HANDLE file_handle)
 	mark[2] = 0xBF;
 	DWORD numberOfByteWritten;
 
-	if (TRUE != ::WriteFile(file_handle, &mark, sizeof(mark), &numberOfByteWritten, NULL)) //UTF-8 헤더값 write
+	if (TRUE != WriteFile(file_handle, &mark, sizeof(mark), &numberOfByteWritten, NULL)) //UTF-8 헤더값 write
 	{
 		printf("err, WriteFile(%s) failed, gle = %u", str, GetLastError());
 		CloseHandle(file_handle);
 		return false;
 	}
-	if (TRUE != ::WriteFile(file_handle, multibyteBuffer, size_needed, &numberOfByteWritten, NULL)) // "노용환멘토님 만세~ I can give my word." 문자열 write
+	if (TRUE != WriteFile(file_handle, multibyteBuffer, size_needed, &numberOfByteWritten, NULL)) // "노용환멘토님 만세~ I can give my word." 문자열 write
 	{
 		printf("err, WriteFile(%s) failed, gle = %u", str, GetLastError());
 		CloseHandle(file_handle);
@@ -244,10 +269,11 @@ bool create_file(HANDLE file_handle)
 	}
 
 	free(multibyteBuffer); //malloc 해제
+	CloseHandle(file_handle);
 	return true;
 }
 
-bool copy_file(LPCWSTR input)
+bool copy_file()
 {
 	// current directory 를 구한다.
 	wchar_t *buf = NULL;
@@ -267,11 +293,22 @@ bool copy_file(LPCWSTR input)
 		return false;
 	}
 
-	// current dir \\ bob2.txt 파일명 생성
+	// current dir \\ test.txt 파일명 생성
 	wchar_t file_name[260];
+	wchar_t file_name2[260];
 	if (!SUCCEEDED(StringCbPrintfW(
 		file_name,
 		sizeof(file_name),
+		L"%ws\\bob.txt",
+		buf)))
+	{
+		printf("err, can not create file name");
+		free(buf);
+		return false;
+	}
+	if (!SUCCEEDED(StringCbPrintfW(
+		file_name2,
+		sizeof(file_name2),
 		L"%ws\\bob2.txt",
 		buf)))
 	{
@@ -279,10 +316,9 @@ bool copy_file(LPCWSTR input)
 		free(buf);
 		return false;
 	}
-	free(buf);
-	buf = NULL;
+	free(buf); buf = NULL;
 
-	if (TRUE != CopyFile(input, (LPCWSTR)file_name, false)) //파일 copy
+	if (TRUE != CopyFile((LPCWSTR)file_name, (LPCWSTR)file_name2, false)) //파일 copy
 	{
 		printf("err, CopyFile() failed. gle: %u", GetLastError());
 		return false;
@@ -352,10 +388,10 @@ bool read_file()
 		CloseHandle(file_handle);
 		return false;
 	}
-	int Len1 = ::MultiByteToWideChar(CP_UTF8, 0, multibyteBuffer, -1, bstrstr, 0);
+	int Len1 = MultiByteToWideChar(CP_UTF8, 0, multibyteBuffer, -1, bstrstr, 0);
 	bstrstr = (wchar_t*)malloc(sizeof(wchar_t)*(Len1+1));
 	memset(bstrstr, 0, sizeof(bstrstr));
-	::MultiByteToWideChar(CP_UTF8, 0, multibyteBuffer, -1, bstrstr, Len1);
+	MultiByteToWideChar(CP_UTF8, 0, multibyteBuffer, -1, bstrstr, Len1);
 
 	int Len2 = WideCharToMultiByte(CP_ACP, 0, bstrstr, -1, str, 0, NULL, NULL);
 	str = (char*)malloc(Len2 + 1);
@@ -365,8 +401,61 @@ bool read_file()
 	printf("Using ReadFile() api:\n");
 	printf("%s\n\n", str+1); //??? 왜 1 더해야할까
 	
+	
 	free(bstrstr);
 	free(str);
+	CloseHandle(file_handle);
+
 	return true;
 }
 
+bool delete_file()
+{
+	// current directory 를 구한다.
+	wchar_t *buf = NULL;
+	uint32_t buflen = 0;
+	buflen = GetCurrentDirectoryW(buflen, buf);
+	if (0 == buflen)
+	{
+		printf("err, GetCurrentDirectoryW() failed. gle = 0x%08x", GetLastError());
+		return false;
+	}
+
+	buf = (PWSTR)malloc(sizeof(WCHAR) * buflen);
+	if (0 == GetCurrentDirectoryW(buflen, buf))
+	{
+		printf("err, GetCurrentDirectoryW() failed. gle = 0x%08x", GetLastError());
+		free(buf);
+		return false;
+	}
+
+	// current dir \\ test.txt 파일명 생성
+	wchar_t file_name[260];
+	wchar_t file_name2[260];
+	if (!SUCCEEDED(StringCbPrintfW(
+		file_name,
+		sizeof(file_name),
+		L"%ws\\bob.txt",
+		buf)))
+	{
+		printf("err, can not create file name");
+		free(buf);
+		return false;
+	}
+	if (!SUCCEEDED(StringCbPrintfW(
+		file_name2,
+		sizeof(file_name2),
+		L"%ws\\bob2.txt",
+		buf)))
+	{
+		printf("err, can not create file name");
+		free(buf);
+		return false;
+	}
+	free(buf); buf = NULL;
+
+	DeleteFileW(file_name);
+	DeleteFileW(file_name2);
+
+	return true;
+}
