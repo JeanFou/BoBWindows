@@ -12,6 +12,7 @@
 bool read_file_using_memory_map();
 bool create_file();
 bool copy_file();
+bool read_and_print();
 bool read_file();
 bool delete_file();
 
@@ -155,22 +156,25 @@ bool read_file_using_memory_map()
 
 	wchar_t *bstrstr = NULL;
 	char* str = NULL;
-	int Len1 = MultiByteToWideChar(CP_UTF8, 0, file_view, -1, bstrstr, 0); //file_view가 UTF-8 형식이라서 wchar_t type으로 바꿔줌
+	int Len1 = MultiByteToWideChar(CP_UTF8, 0, file_view, -1, bstrstr, 0);
 	bstrstr = (wchar_t*)malloc(sizeof(wchar_t)*(Len1 + 1));
 	memset(bstrstr, 0, sizeof(bstrstr));
 	MultiByteToWideChar(CP_UTF8, 0, file_view, -1, bstrstr, Len1);
 
-	int Len2 = WideCharToMultiByte(CP_ACP, 0, bstrstr, -1, str, 0, NULL, NULL); //wchar_t type이 바로 출력이 안되어서 출력할 수 있도록 다시 변환
+	int Len2 = WideCharToMultiByte(CP_ACP, 0, bstrstr, -1, str, 0, NULL, NULL);
 	str = (char*)malloc(Len2 + 1);
 	memset(str, 0, sizeof(str));
 	WideCharToMultiByte(CP_ACP, 0, bstrstr, -1, str, Len2, NULL, NULL);
 	
 	printf("using Memory Mapped I/O:\n");
-	printf("%s\n", str+1); //왜 1을 더해야 할까
+	printf("%s\n", str+1);
 	
 	// do some io
 	char a = file_view[0];  // 0x d9
 	char b = file_view[1];  // 0xb3
+
+	
+
 
 	// close all
 	UnmapViewOfFile(file_view);
@@ -378,29 +382,29 @@ bool read_file()
 
 	memset(multibyteBuffer, 0, sizeof(multibyteBuffer));
 
-	if (TRUE != ReadFile(file_handle, multibyteBuffer, MAX_LINE-1, &numberOfByteRead, NULL)) //multibyteBuffer에 파일의 내용을 받아옴
+	if (TRUE != ReadFile(file_handle, multibyteBuffer, MAX_LINE-1, &numberOfByteRead, NULL))
 	{
 		printf("err, ReadFile() failed. gle: %u", GetLastError());
 		CloseHandle(file_handle);
 		return false;
 	}
-	int Len1 = MultiByteToWideChar(CP_UTF8, 0, multibyteBuffer, -1, bstrstr, 0); //받아온 문자열의 길이를 측정
-	bstrstr = (wchar_t*)malloc(sizeof(wchar_t)*(Len1+1)); //그 길이 + 1 만큼 동적할당
-	memset(bstrstr, 0, sizeof(bstrstr)); //메모리 초기화
-	MultiByteToWideChar(CP_UTF8, 0, multibyteBuffer, -1, bstrstr, Len1);//UTF-8을 wchar_t type으로 바꿔줌
+	int Len1 = MultiByteToWideChar(CP_UTF8, 0, multibyteBuffer, -1, bstrstr, 0);
+	bstrstr = (wchar_t*)malloc(sizeof(wchar_t)*(Len1+1));
+	memset(bstrstr, 0, sizeof(bstrstr));
+	MultiByteToWideChar(CP_UTF8, 0, multibyteBuffer, -1, bstrstr, Len1);
 
-	int Len2 = WideCharToMultiByte(CP_ACP, 0, bstrstr, -1, str, 0, NULL, NULL); //wchar_t type이 한글이 바로 출력이 안되어서 출력가능한 형식으로 다시 바꿈
-	str = (char*)malloc(Len2 + 1); //담기위한 공간 동적할당
-	memset(str, 0, sizeof(str)); //메모리 초기화
-	WideCharToMultiByte(CP_ACP, 0, bstrstr, -1, str, Len2, NULL, NULL); //변환
+	int Len2 = WideCharToMultiByte(CP_ACP, 0, bstrstr, -1, str, 0, NULL, NULL);
+	str = (char*)malloc(Len2 + 1);
+	memset(str, 0, sizeof(str));
+	WideCharToMultiByte(CP_ACP, 0, bstrstr, -1, str, Len2, NULL, NULL);
 	
 	printf("Using ReadFile() api:\n");
-	printf("%s\n\n", str+1); //출력 (왜 1 더해야할까??)
+	printf("%s\n\n", str+1); //??? 왜 1 더해야할까
 	
 	
-	free(bstrstr); //동적할당 한 메모리 해제
+	free(bstrstr);
 	free(str);
-	CloseHandle(file_handle); //파일 핸들러 close
+	CloseHandle(file_handle);
 
 	return true;
 }
@@ -450,7 +454,7 @@ bool delete_file()
 	}
 	free(buf); buf = NULL;
 
-	DeleteFileW(file_name); //파일 삭제
+	DeleteFileW(file_name);
 	DeleteFileW(file_name2);
 
 	return true;
